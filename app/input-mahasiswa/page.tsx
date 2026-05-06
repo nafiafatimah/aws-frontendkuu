@@ -1,185 +1,235 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Users,
-  AlertTriangle,
-  CheckCircle2,
-  Plus,
-  GraduationCap,
-  CalendarDays,
-} from "lucide-react";
-import Link from "next/link";
+import { useState, FormEvent } from "react";
+import { GraduationCap, CalendarDays, Upload, UserPlus } from "lucide-react";
 
-// =====================
-// TYPES
-// =====================
-type StatusType = "AMAN" | "RISIKO TINGGI";
+const BASE_URL = "http://127.0.0.1:8000";
 
-type DataItem = {
-  nrp: string;
-  status: StatusType;
-  probabilitas: number;
-};
+type TargetType = "kelulusan" | "semester";
+type ModeType = "manual" | "csv";
+type FormDataType = Record<string, string | number>;
 
-// =====================
-// MOCK DATA
-// =====================
-const dataAlumni: DataItem[] = [
-  { nrp: "3123500045", status: "RISIKO TINGGI", probabilitas: 0.32 },
-  { nrp: "3123500012", status: "AMAN", probabilitas: 0.87 },
-];
+function parseForm(formData: FormData): FormDataType {
+  const data: FormDataType = {};
+  formData.forEach((value, key) => {
+    const val = value.toString();
+    const num = Number(val);
+    data[key] = Number.isNaN(num) ? val : num;
+  });
+  return data;
+}
 
-const dataSemester: DataItem[] = [
-  { nrp: "3123500045", status: "AMAN", probabilitas: 0.75 },
-  { nrp: "3123500012", status: "RISIKO TINGGI", probabilitas: 0.40 },
-];
+export default function InputMahasiswaPage() {
+  const [target, setTarget] = useState<TargetType>("kelulusan");
+  const [mode, setMode] = useState<ModeType>("manual");
 
-// =====================
-// HELPER
-// =====================
-const getStats = (data: DataItem[]) => ({
-  total: data.length,
-  risiko: data.filter((d) => d.status === "RISIKO TINGGI").length,
-  aman: data.filter((d) => d.status === "AMAN").length,
-});
+  const isKelulusan = target === "kelulusan";
 
-const getStatusColor = (status: StatusType) => {
-  return status === "RISIKO TINGGI"
-    ? "bg-red-500"
-    : "bg-green-500";
-};
+  // ================= SUBMIT =================
+  const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>,
+    endpoint: string
+  ) => {
+    e.preventDefault();
 
-// =====================
-// COMPONENT
-// =====================
-export default function DashboardPage() {
-  const [targetModel, setTargetModel] = useState<"alumni" | "semester">("alumni");
+    const form = e.currentTarget;
+    const data = parseForm(new FormData(form));
 
-  const isSemester = targetModel === "semester";
-  const activeData = isSemester ? dataSemester : dataAlumni;
-  const stats = getStats(activeData);
+    try {
+      const res = await fetch(`${BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
 
-  const theme = {
-    main: isSemester ? "bg-blue-50/50" : "bg-zinc-50",
-    primary: isSemester ? "bg-blue-900" : "bg-slate-800",
-    danger: isSemester ? "bg-red-700" : "bg-red-600",
-    success: isSemester ? "bg-green-700" : "bg-green-600",
+      const result = await res.json();
+
+      alert(
+        `${result.nama}\nStatus: ${result.status}\nProb: ${(
+          result.probabilitas * 100
+        ).toFixed(2)}%`
+      );
+
+      form.reset();
+    } catch {
+      alert("Gagal konek backend");
+    }
   };
 
+  // ================= CSV =================
+  const handleCSV = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    alert("Upload CSV belum aktif di backend");
+  };
+
+  // ================= STYLE =================
+  const containerStyle = isKelulusan
+    ? "bg-white"
+    : "bg-blue-50 border border-blue-100";
+
+  const buttonColor = isKelulusan
+    ? "bg-gray-900 hover:bg-black"
+    : "bg-blue-600 hover:bg-blue-700";
+
   return (
-    <div className={`min-h-screen ${theme.main}`}>
-      <div className="p-6 space-y-5 max-w-[1200px] mx-auto">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-5xl mx-auto space-y-6">
 
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h1 className="text-xl font-bold">Dashboard Admin</h1>
-            <p className="text-xs text-gray-400">
-              Mode: {isSemester ? "Monitoring Semester" : "Analisis Alumni"}
-            </p>
-          </div>
+        <div>
+          <h1 className="text-xl font-bold">Input Data Mahasiswa</h1>
+          <p className="text-sm text-gray-500">
+            {isKelulusan
+              ? "Prediksi kelulusan mahasiswa"
+              : "Monitoring performa per semester"}
+          </p>
+        </div>
 
-          {/* TOGGLE */}
-          <div className="flex bg-white p-1 rounded-xl border">
+        {/* SWITCH TARGET (CENTER) */}
+        <div className="flex justify-center">
+          <div className="flex bg-gray-100 border rounded-2xl p-1 shadow-sm">
+
             <button
-              onClick={() => setTargetModel("alumni")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg ${
-                targetModel === "alumni" ? "bg-black text-white" : ""
+              onClick={() => setTarget("kelulusan")}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm transition ${
+                isKelulusan
+                  ? "bg-white text-gray-900 shadow"
+                  : "text-gray-500"
               }`}
             >
-              <GraduationCap size={14} /> Alumni
+              <GraduationCap size={16} />
+              Kelulusan
             </button>
 
             <button
-              onClick={() => setTargetModel("semester")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg ${
-                targetModel === "semester" ? "bg-blue-600 text-white" : ""
+              onClick={() => setTarget("semester")}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm transition ${
+                !isKelulusan
+                  ? "bg-blue-600 text-white shadow"
+                  : "text-gray-500"
               }`}
             >
-              <CalendarDays size={14} /> Semester
+              <CalendarDays size={16} />
+              Per Semester
             </button>
-          </div>
 
-          <Link
-            href="/input-mahasiswa"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs flex items-center gap-2"
-          >
-            <Plus size={14} />
-            Input
-          </Link>
-        </div>
-
-        {/* STATS */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className={`${theme.primary} text-white p-4 rounded-xl`}>
-            <p className="text-xs opacity-70">Total</p>
-            <h2 className="text-2xl font-bold">{stats.total}</h2>
-          </div>
-
-          <div className={`${theme.danger} text-white p-4 rounded-xl`}>
-            <p className="text-xs opacity-70">Risiko Tinggi</p>
-            <h2 className="text-2xl font-bold">{stats.risiko}</h2>
-          </div>
-
-          <div className={`${theme.success} text-white p-4 rounded-xl`}>
-            <p className="text-xs opacity-70">Aman</p>
-            <h2 className="text-2xl font-bold">{stats.aman}</h2>
           </div>
         </div>
 
-        {/* TABLE */}
-        <div className="bg-white rounded-xl border shadow-sm">
-          <div className="p-4 border-b">
-            <h3 className="font-bold text-sm">
-              Data {isSemester ? "Semester" : "Alumni"}
-            </h3>
+        {/* CARD */}
+        <div className={`rounded-2xl p-6 shadow-sm ${containerStyle}`}>
+
+          {/* SWITCH MODE (CENTER - SESUAI DESAIN) */}
+          <div className="flex justify-center mb-6">
+            <div className="flex bg-gray-200 rounded-full p-1 w-[350px]">
+
+              <button
+                onClick={() => setMode("manual")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-full text-sm transition ${
+                  mode === "manual"
+                    ? "bg-white shadow font-medium"
+                    : "text-gray-500"
+                }`}
+              >
+                <UserPlus size={16} />
+                Input Manual
+              </button>
+
+              <button
+                onClick={() => setMode("csv")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-full text-sm transition ${
+                  mode === "csv"
+                    ? "bg-white shadow font-medium"
+                    : "text-gray-500"
+                }`}
+              >
+                <Upload size={16} />
+                Upload CSV
+              </button>
+
+            </div>
           </div>
 
-          <table className="w-full text-xs">
-            <thead className="bg-gray-50 text-gray-400">
-              <tr>
-                <th className="p-3">NRP</th>
-                <th>Status</th>
-                <th>Probabilitas</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
+          {/* ================= MANUAL ================= */}
+          {mode === "manual" && isKelulusan && (
+            <form
+              onSubmit={(e) => handleSubmit(e, "/predict/kelulusan")}
+              className="grid grid-cols-2 gap-4 text-sm"
+            >
+              <input name="nrp" placeholder="NRP" className="input" required />
+              <input name="nama" placeholder="Nama" className="input" required />
+              <input name="angkatan" type="number" placeholder="Angkatan" className="input" required />
+              <input name="label_prog" type="number" placeholder="Prodi (label)" className="input" required />
+              <input name="gender_enc" type="number" placeholder="Gender (0/1)" className="input" required />
+              <input name="ips_mean" type="number" step="0.01" placeholder="IPS Mean" className="input" required />
+              <input name="sks_mean" type="number" step="0.01" placeholder="SKS Mean" className="input" required />
+              <input name="ipk_mean" type="number" step="0.01" placeholder="IPK Mean" className="input" required />
+              <input name="absen_mean" type="number" step="0.1" placeholder="Absen Mean" className="input" required />
+              <input name="teori_mean" type="number" step="0.1" placeholder="Nilai Teori" className="input" required />
+              <input name="prak_mean" type="number" step="0.1" placeholder="Nilai Praktek" className="input" required />
+              <input name="cnt_tepat_waktu" type="number" placeholder="Count Tepat Waktu" className="input" required />
 
-            <tbody>
-              {activeData.map((m) => (
-                <tr key={m.nrp} className="border-t">
-                  <td className="p-3 font-bold text-blue-600">{m.nrp}</td>
+              <button className={`col-span-2 text-white py-2 rounded-lg ${buttonColor}`}>
+                Simpan & Prediksi
+              </button>
+            </form>
+          )}
 
-                  <td>
-                    <span
-                      className={`${getStatusColor(
-                        m.status
-                      )} text-white px-2 py-1 rounded`}
-                    >
-                      {m.status}
-                    </span>
-                  </td>
+          {mode === "manual" && !isKelulusan && (
+            <form
+              onSubmit={(e) => handleSubmit(e, "/predict/semester")}
+              className="grid grid-cols-2 gap-4 text-sm"
+            >
+              <input name="nrp" placeholder="NRP" className="input" required />
+              <input name="nama" placeholder="Nama" className="input" required />
+              <input name="semester_ke" type="number" placeholder="Semester" className="input" required />
+              <input name="label_prog" type="number" placeholder="Prodi" className="input" required />
+              <input name="ips" type="number" step="0.01" placeholder="IPS" className="input" required />
+              <input name="ips_diff" type="number" step="0.01" placeholder="IPS Diff" className="input" required />
+              <input name="presensi" type="number" placeholder="Presensi %" className="input" required />
+              <input name="teori" type="number" placeholder="Nilai Teori" className="input" required />
+              <input name="prak" type="number" placeholder="Nilai Praktek" className="input" required />
+              <input name="sks_target" type="number" placeholder="SKS Target" className="input" required />
+              <input name="delay_tugas" type="number" placeholder="Delay Tugas" className="input" required />
+              <input name="total_sks_hutang" type="number" placeholder="SKS Hutang" className="input" required />
+              <input name="ekonomi_level" type="number" placeholder="Ekonomi" className="input" required />
+              <input name="skor_masuk" type="number" placeholder="Skor Masuk" className="input" required />
 
-                  <td>
-                    {(m.probabilitas * 100).toFixed(2)}%
-                  </td>
+              <button className={`col-span-2 text-white py-2 rounded-lg ${buttonColor}`}>
+                Simpan & Prediksi
+              </button>
+            </form>
+          )}
 
-                  <td>
-                    <Link
-                      href={`/hasil/${m.nrp}`}
-                      className="text-blue-600 font-bold"
-                    >
-                      Detail
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* ================= CSV ================= */}
+          {mode === "csv" && (
+            <form
+              onSubmit={handleCSV}
+              className="flex flex-col items-center gap-4"
+            >
+              <p className="text-sm text-gray-500 text-center">
+                Upload file CSV untuk prediksi massal
+              </p>
+
+              <input type="file" accept=".csv" className="text-sm" />
+
+              <button className={`text-white px-6 py-2 rounded-lg ${buttonColor}`}>
+                Upload & Proses
+              </button>
+            </form>
+          )}
         </div>
-
       </div>
+
+      {/* STYLE */}
+      <style jsx>{`
+        .input {
+          padding: 10px;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb;
+          background: #f9fafb;
+        }
+      `}</style>
     </div>
   );
 }

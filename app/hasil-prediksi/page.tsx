@@ -1,133 +1,213 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { getResultByNRP, ResultItem } from "@/lib/api";
+import Link from "next/link";
+import { GraduationCap, CalendarDays } from "lucide-react";
 
-// ==============================
-// STATUS HELPER
-// ==============================
-const getStatus = (prob: number) => {
-  if (prob >= 0.5) {
-    return {
-      label: "AMAN",
-      warna: "bg-green-500",
-      bgSoft: "bg-green-50",
-      text: "text-green-700",
-    };
-  }
-
-  return {
-    label: "RISIKO TINGGI",
-    warna: "bg-red-500",
-    bgSoft: "bg-red-50",
-    text: "text-red-700",
-  };
+type DataItem = {
+  nrp: string;
+  nama: string;
+  kategori: string;
+  probabilitas: number;
 };
 
-export default function DetailPage() {
-  const params = useParams();
-  const search = useSearchParams();
+export default function HasilPrediksiPage() {
+  const [target, setTarget] = useState<"kelulusan" | "semester">("kelulusan");
+  const [data, setData] = useState<DataItem[]>([]);
 
-  const nrp = params.nrp as string;
-  const target =
-    (search.get("target") as "kelulusan" | "semester") || "kelulusan";
-
-  const [data, setData] = useState<ResultItem | null>(null);
+  const isSemester = target === "semester";
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const res = await getResultByNRP(nrp, target);
-        console.log("DETAIL RESULT:", res); // DEBUG
+      const url = isSemester
+        ? "http://127.0.0.1:8000/results/semester"
+        : "http://127.0.0.1:8000/results/kelulusan";
 
-        setData(res);
-      } catch (err) {
-        console.error(err);
-      }
+      const res = await fetch(url);
+      const json = await res.json();
+      setData(json);
     };
 
     fetchData();
-  }, [nrp, target]);
+  }, [target]);
 
-  if (!data) {
-    return <div className="p-6 text-center">Loading data...</div>;
-  }
+  // =========================
+  // 📊 SUMMARY
+  // =========================
+  const total = data.length;
 
-  const s = getStatus(data.probabilitas);
+  const avgProb =
+    total > 0
+      ? data.reduce((acc, d) => acc + d.probabilitas, 0) / total
+      : 0;
+
+  const risiko = data.filter((d) => d.probabilitas < 0.5).length;
+  const aman = data.filter((d) => d.probabilitas >= 0.5).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-xl mx-auto space-y-6">
+    <div className={`min-h-screen p-6 ${isSemester ? "bg-blue-50" : "bg-gray-50"}`}>
+      <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* =========================
-            HEADER
-        ========================= */}
-        <div>
-          <h1 className="text-xl font-bold">Detail Prediksi</h1>
-          <p className="text-sm text-gray-400">
-            Target: {target === "semester" ? "Monitoring Semester" : "Kelulusan"}
-          </p>
-        </div>
+        {/* HEADER */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">
+              Hasil Prediksi
+            </h1>
+            <p className="text-sm text-gray-500">
+              Ringkasan hasil prediksi untuk semua mahasiswa
+            </p>
+          </div>
 
-        {/* =========================
-            CARD IDENTITAS
-        ========================= */}
-        <div className="bg-white p-5 rounded-xl shadow space-y-2">
-          <p className="text-xs text-gray-400">NRP</p>
-          <h2 className="font-bold text-blue-600 text-lg">{data.nrp}</h2>
-
-          <p className="text-xs text-gray-400 mt-2">Nama Mahasiswa</p>
-          <h2 className="font-semibold text-gray-800">
-            {data.nama || "-"}
-          </h2>
-        </div>
-
-        {/* =========================
-            CARD STATUS
-        ========================= */}
-        <div className={`${s.bgSoft} p-5 rounded-xl shadow`}>
-          <p className="text-xs text-gray-400">Status Risiko</p>
-
-          <div className="flex justify-between items-center mt-2">
-            <span
-              className={`${s.warna} text-white px-3 py-1 rounded-lg text-xs font-bold`}
+          {/* SWITCH */}
+          <div className="flex bg-white border rounded-xl p-1 shadow-sm">
+            <button
+              onClick={() => setTarget("kelulusan")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${
+                !isSemester ? "bg-gray-800 text-white" : "text-gray-500"
+              }`}
             >
-              {s.label}
-            </span>
+              <GraduationCap size={16} />
+              Kelulusan
+            </button>
 
-            <span className={`text-sm font-semibold ${s.text}`}>
-              {data.probabilitas >= 0.5
-                ? "Kondisi Aman"
-                : "Perlu Perhatian"}
-            </span>
+            <button
+              onClick={() => setTarget("semester")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${
+                isSemester ? "bg-blue-600 text-white" : "text-gray-500"
+              }`}
+            >
+              <CalendarDays size={16} />
+              Per Semester
+            </button>
           </div>
         </div>
 
-        {/* =========================
-            CARD PROBABILITAS (INI YANG KAMU MAU)
-        ========================= */}
-        <div className={`${s.warna} text-white p-6 rounded-xl shadow text-center`}>
-          <p className="text-xs opacity-80 mb-2">Probabilitas</p>
+        {/* SUMMARY CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-          <h1 className="text-4xl font-bold">
-            {(data.probabilitas * 100).toFixed(2)}%
-          </h1>
+          {/* AVG */}
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-sm text-gray-500">Rata-rata Probabilitas</p>
+            <h2 className="text-2xl font-bold mt-2">
+              {(avgProb * 100).toFixed(1)}%
+            </h2>
+          </div>
+
+          {/* RISIKO */}
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-sm text-red-500">Risiko Tinggi</p>
+            <h2 className="text-2xl font-bold text-red-600 mt-2">
+              {risiko}
+            </h2>
+          </div>
+
+          {/* AMAN */}
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <p className="text-sm text-green-600">Aman</p>
+            <h2 className="text-2xl font-bold text-green-700 mt-2">
+              {aman}
+            </h2>
+          </div>
         </div>
 
-        {/* =========================
-            FOOTER INFO
-        ========================= */}
-        <div className="bg-white p-4 rounded-xl shadow text-sm text-gray-500">
-          <p>
-            Waktu Prediksi:
-            <br />
-            <span className="font-medium text-gray-700">
-              {new Date(data.created_at).toLocaleString()}
-            </span>
-          </p>
-        </div>
+        {/* TABLE */}
+        <div className="bg-white rounded-xl border shadow-sm">
 
+          <div className="p-4 border-b">
+            <h2 className="font-semibold text-gray-700">
+              Detail Hasil Prediksi
+            </h2>
+            <p className="text-xs text-gray-400">
+              Daftar lengkap hasil prediksi setiap mahasiswa
+            </p>
+          </div>
+
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500">
+              <tr>
+                <th className="p-3 text-left">NRP</th>
+                <th>Status Risiko</th>
+                <th>Probabilitas</th>
+                <th>Tren</th>
+                <th>Faktor Utama</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {data.map((item) => {
+                const prob = Math.round(item.probabilitas * 100);
+                const isRisk = prob < 50;
+
+                return (
+                  <tr key={item.nrp} className="border-t hover:bg-gray-50">
+
+                    {/* NRP */}
+                    <td className="p-3 text-blue-600 font-semibold">
+                      {item.nrp}
+                    </td>
+
+                    {/* STATUS */}
+                    <td>
+                      <span
+                        className={`px-3 py-1 text-xs font-bold rounded-full ${
+                          isRisk
+                            ? "bg-red-100 text-red-600"
+                            : "bg-green-100 text-green-600"
+                        }`}
+                      >
+                        {isRisk ? "RISIKO TINGGI" : "AMAN"}
+                      </span>
+                    </td>
+
+                    {/* PROB */}
+                    <td className="w-[200px]">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs">{prob}%</span>
+
+                        <div className="bg-gray-200 h-2 rounded-full">
+                          <div
+                            className={`h-2 rounded-full ${
+                              isRisk ? "bg-red-500" : "bg-green-500"
+                            }`}
+                            style={{ width: `${prob}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* TREND (dummy dulu) */}
+                    <td className="text-center">
+                      {isRisk ? "📉" : "📈"}
+                    </td>
+
+                    {/* FAKTOR (dummy dulu) */}
+                    <td className="space-x-2">
+                      <span className="bg-gray-100 px-2 py-1 rounded text-xs">
+                        ip_semester
+                      </span>
+                      <span className="bg-gray-100 px-2 py-1 rounded text-xs">
+                        presensi
+                      </span>
+                    </td>
+
+                    {/* AKSI */}
+                    <td>
+                      <Link
+                        href={`/hasil-prediksi/${item.nrp}?target=${target}`}
+                        className="text-blue-600 hover:underline text-sm"
+                      >
+                        Lihat Detail
+                      </Link>
+                    </td>
+
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
