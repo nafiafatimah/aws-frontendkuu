@@ -241,8 +241,8 @@ const handleCSV = async (
               <input name="nrp" placeholder="NRP" className="input" required />
               <input name="nama" placeholder="Nama" className="input" required />
               <input name="angkatan" type="number" placeholder="Angkatan" className="input" required />
-              <input name="label_prog" type="number" placeholder="Prodi (label)" className="input" required />
-              <input name="gender_enc" type="number" placeholder="Gender (0/1)" className="input" required />
+              <input name="label_prog" type="number" placeholder="Prodi (label 0(D3)/1 (D4))" className="input" required />
+              <input name="gender_enc" type="number" placeholder="Gender (0(P)/1(L))" className="input" required />
               <input name="ips_mean" type="number" step="0.01" placeholder="IPS Mean" className="input" required />
               <input name="sks_mean" type="number" step="0.01" placeholder="SKS Mean" className="input" required />
               <input name="ipk_mean" type="number" step="0.01" placeholder="IPK Mean" className="input" required />
@@ -265,7 +265,7 @@ const handleCSV = async (
               <input name="nrp" placeholder="NRP" className="input" required />
               <input name="nama" placeholder="Nama" className="input" required />
               <input name="semester_ke" type="number" placeholder="Semester" className="input" required />
-              <input name="label_prog" type="number" placeholder="Prodi" className="input" required />
+              <input name="label_prog" type="number" placeholder="Prodi (1(D4)/0(D3))" className="input" required />
               <input name="ips" type="number" step="0.01" placeholder="IPS" className="input" required />
               <input name="ips_diff" type="number" step="0.01" placeholder="IPS Diff" className="input" required />
               <input name="presensi" type="number" placeholder="Presensi %" className="input" required />
